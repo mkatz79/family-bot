@@ -9,35 +9,43 @@ const oauth2Client = new google.auth.OAuth2(
 oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
 const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-async function getAllCalendarIds() {
-  const res = await calendar.calendarList.list();
-  return res.data.items.map(c => ({ id: c.id, name: c.summary }));
-}
-
 async function listEvents(timeMin, timeMax, maxResults = 50) {
-  const cals = await getAllCalendarIds();
+  const now = new Date();
+  const tMin = timeMin ? new Date(timeMin).toISOString() : now.toISOString();
+  const tMax = timeMax ? new Date(timeMax).toISOString() : new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+  console.log('listEvents called:', tMin, '->', tMax);
+
+  const calList = await calendar.calendarList.list();
+  const cals = calList.data.items || [];
+  console.log('Calendars found:', cals.map(c => c.summary).join(', '));
+
   const allEvents = [];
   for (const cal of cals) {
     try {
       const res = await calendar.events.list({
         calendarId: cal.id,
-        timeMin: timeMin || new Date().toISOString(),
-        timeMax: timeMax,
+        timeMin: tMin,
+        timeMax: tMax,
         maxResults: maxResults,
         singleEvents: true,
         orderBy: 'startTime',
       });
-      const events = (res.data.items || []).map(e => ({ ...e, calendarName: cal.name }));
+      const events = (res.data.items || []).map(e => ({ ...e, calendarName: cal.summary }));
+      console.log(`${cal.summary}: ${events.length} events`);
       allEvents.push(...events);
     } catch(e) {
-      // skip calendars we can't read
+      console.log(`Error reading ${cal.summary}: ${e.message}`);
     }
   }
+
   allEvents.sort((a, b) => {
     const aTime = a.start?.dateTime || a.start?.date || '';
     const bTime = b.start?.dateTime || b.start?.date || '';
     return aTime.localeCompare(bTime);
   });
+
+  console.log('Total events:', allEvents.length);
   return allEvents.slice(0, maxResults);
 }
 
