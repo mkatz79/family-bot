@@ -74,7 +74,7 @@ Personality: Be warm, direct, and conversational — exactly like Claude in a ch
   const messages = [...history];
 
   for (let i = 0; i < 5; i++) {
-    const res = await anthropic.messages.create({ model: 'claude-sonnet-4-20250514', max_tokens: 1024, system, tools, messages });
+    const res = await anthropic.messages.create({ model: "claude-sonnet-4-20250514", max_tokens: 1024, system, tools, messages });
 
     if (res.stop_reason === 'end_turn') {
       const t = res.content.find(b => b.type === 'text');
