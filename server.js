@@ -10,8 +10,8 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
 
-// Use a catch-all webhook route so it works regardless of token format
-app.post('/webhook/:token', async (req, res) => {
+// Handle all POST requests to /webhook/* using middleware
+app.use('/webhook', async (req, res) => {
   res.sendStatus(200);
   const update = req.body;
   if (!update.message || !update.message.text) return;
@@ -24,6 +24,7 @@ app.post('/webhook/:token', async (req, res) => {
     const isReply = msg.reply_to_message && msg.reply_to_message.from && msg.reply_to_message.from.is_bot;
     if (!botMentioned && !isReply) return;
   }
+  console.log(`Message from ${senderName}: ${text}`);
   try {
     const response = await processMessage(`[${senderName}]: ${text}`, chatId);
     if (response) await sendMessage(chatId, response);
