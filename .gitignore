@@ -1,0 +1,5 @@
+node_modules/
+.env
+family-context.json
+*.log
+credentials.json
