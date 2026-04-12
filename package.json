@@ -1,26 +1,16 @@
 {
   "name": "family-scheduler-bot",
   "version": "1.0.0",
-  "description": "WhatsApp family scheduling bot powered by Claude",
+  "description": "Katz Family Calendar Bot",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "auth": "node scripts/google-auth.js"
+    "start": "node server.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
-    "body-parser": "^1.20.2",
-    "dotenv": "^16.4.5",
-    "express": "^4.18.2",
-    "googleapis": "^144.0.0",
-    "node-cron": "^3.0.3",
-    "twilio": "^5.3.3"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "@anthropic-ai/sdk": "^0.20.0",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.0",
+    "googleapis": "^126.0.0",
+    "node-cron": "^3.0.0"
   }
 }
