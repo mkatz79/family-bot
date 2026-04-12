@@ -1,73 +1,47 @@
 require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
-const twilio = require('twilio');
 const cron = require('node-cron');
 const { processMessage } = require('./agent');
-const { getUpcomingReminders } = require('./calendar');
-const { sendWhatsAppMessage } = require('./whatsapp');
-
+const { sendMessage, setWebhook } = require('./telegram');
 const app = express();
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-
+app.use(express.json());
 const PORT = process.env.PORT || 3000;
-
-// ─── Twilio webhook — receives incoming WhatsApp messages ───────────────────
-app.post('/webhook', async (req, res) => {
-  // Twilio sends form-encoded data
-  const from = req.body.From;        // e.g. "whatsapp:+15551234567"
-  const body = req.body.Body?.trim();
-  const profileName = req.body.ProfileName || 'Family member';
-
-  if (!body) return res.sendStatus(200);
-
-  console.log(`[${new Date().toISOString()}] Message from ${profileName} (${from}): ${body}`);
-
-  try {
-    const reply = await processMessage(from, profileName, body);
-    await sendWhatsAppMessage(process.env.WHATSAPP_GROUP_ID, reply);
-  } catch (err) {
-    console.error('Error processing message:', err);
-  }
-
-  // Always respond 200 quickly so Twilio doesn't retry
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
+app.post(`/webhook/${BOT_TOKEN}`, async (req, res) => {
   res.sendStatus(200);
-});
-
-// ─── Health check ────────────────────────────────────────────────────────────
-app.get('/', (req, res) => {
-  res.json({ status: 'ok', bot: 'family-scheduler', time: new Date().toISOString() });
-});
-
-// ─── Reminder cron — runs every 15 minutes, checks for upcoming events ───────
-cron.schedule('*/15 * * * *', async () => {
+  const update = req.body;
+  if (!update.message || !update.message.text) return;
+  const msg = update.message;
+  const chatId = msg.chat.id.toString();
+  const senderName = msg.from.first_name || msg.from.username || 'Family member';
+  const text = msg.text;
+  if (msg.chat.type !== 'private') {
+    const botMentioned = text.toLowerCase().includes('@katzfamilybot');
+    const isReply = msg.reply_to_message?.from?.is_bot;
+    if (!botMentioned && !isReply) return;
+  }
   try {
-    const reminders = await getUpcomingReminders();
-    for (const reminder of reminders) {
-      const msg = formatReminderMessage(reminder);
-      await sendWhatsAppMessage(process.env.WHATSAPP_GROUP_ID, msg);
-      console.log(`Sent reminder: ${reminder.summary}`);
-    }
+    const response = await processMessage(`[${senderName}]: ${text}`, chatId);
+    if (response) await sendMessage(chatId, response);
   } catch (err) {
-    console.error('Reminder cron error:', err);
+    console.error('Error:', err);
+    await sendMessage(chatId, 'Sorry, ran into an error. Try again!');
   }
 });
-
-function formatReminderMessage(event) {
-  const when = new Date(event.start.dateTime || event.start.date);
-  const minutesUntil = Math.round((when - new Date()) / 60000);
-  const timeStr = when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-  if (minutesUntil <= 60) {
-    return `⏰ Reminder: *${event.summary}* is in ${minutesUntil} minutes (${timeStr})${event.description ? '\n' + event.description : ''}`;
-  } else {
-    const hoursUntil = Math.round(minutesUntil / 60);
-    return `📅 Coming up: *${event.summary}* in ~${hoursUntil} hour${hoursUntil > 1 ? 's' : ''} at ${timeStr}${event.description ? '\n' + event.description : ''}`;
+app.get('/', (req, res) => res.send('Katz Family Bot is running!'));
+cron.schedule('0 7 * * *', async () => {
+  if (!GROUP_CHAT_ID) return;
+  try {
+    const r = await processMessage('Give the family a brief morning briefing: date, events today/tomorrow, motivational note.', GROUP_CHAT_ID);
+    if (r) await sendMessage(GROUP_CHAT_ID, r);
+  } catch (e) { console.error(e); }
+}, { timezone: 'America/New_York' });
+app.listen(PORT, async () => {
+  console.log(`Bot running on port ${PORT}`);
+  const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+  if (domain && BOT_TOKEN) {
+    const result = await setWebhook(`https://${domain}/webhook/${BOT_TOKEN}`);
+    console.log('Webhook:', result.description);
   }
-}
-
-app.listen(PORT, () => {
-  console.log(`Family scheduler bot running on port ${PORT}`);
-  console.log(`Webhook URL: POST /webhook`);
 });
