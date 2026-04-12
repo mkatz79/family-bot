@@ -8,10 +8,10 @@ const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
 
-app.post(`/webhook/${BOT_TOKEN}`, async (req, res) => {
+// Use a catch-all webhook route so it works regardless of token format
+app.post('/webhook/:token', async (req, res) => {
   res.sendStatus(200);
   const update = req.body;
   if (!update.message || !update.message.text) return;
@@ -28,7 +28,7 @@ app.post(`/webhook/${BOT_TOKEN}`, async (req, res) => {
     const response = await processMessage(`[${senderName}]: ${text}`, chatId);
     if (response) await sendMessage(chatId, response);
   } catch (err) {
-    console.error('Error:', err);
+    console.error('Error:', err.message);
     try { await sendMessage(chatId, 'Sorry, ran into an error. Try again!'); } catch(e) {}
   }
 });
@@ -45,5 +45,4 @@ cron.schedule('0 7 * * *', async () => {
 
 app.listen(PORT, () => {
   console.log(`Katz Family Bot running on port ${PORT}`);
-  console.log(`Webhook endpoint: POST /webhook/${BOT_TOKEN ? BOT_TOKEN.substring(0,10) + '...' : 'NOT SET'}`);
 });
