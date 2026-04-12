@@ -14,7 +14,7 @@ async function getAllCalendarIds() {
   return res.data.items.map(c => ({ id: c.id, name: c.summary }));
 }
 
-async function listEvents(timeMin, timeMax, maxResults = 20) {
+async function listEvents(timeMin, timeMax, maxResults = 50) {
   const cals = await getAllCalendarIds();
   const allEvents = [];
   for (const cal of cals) {
