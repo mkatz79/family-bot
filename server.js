@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cron = require('node-cron');
-const { processMessage, loadAndScheduleReminders, setSendMessage } = require('./agent');
+const { processMessage, processMessageSafe, loadAndScheduleReminders, setSendMessage } = require("./agent");
 const { sendMessage } = require('./telegram');
 
 const app = express();
@@ -25,7 +25,7 @@ app.use('/webhook', async (req, res) => {
   if (msg.chat.type !== 'private' && chatId !== FAMILY_GROUP_ID) return;
   console.log(`[${msg.chat.type}] ${senderName}: ${text.substring(0,80)}`);
   try {
-    const response = await processMessage(`[${senderName}]: ${text}`, chatId);
+    const response = await processMessageSafe(`[${senderName}]: ${text}`, chatId);
     if (response) await sendMessage(chatId, response);
   } catch (err) {
     console.error('Error:', err.message);

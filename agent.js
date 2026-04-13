@@ -325,3 +325,12 @@ How to respond:
 }
 
 module.exports = { processMessage, loadAndScheduleReminders, setSendMessage };
+
+// Export timeout wrapper
+async function processMessageSafe(userMessage, chatId) {
+  const timeout = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('timeout')), 25000)
+  );
+  return Promise.race([processMessage(userMessage, chatId), timeout]);
+}
+module.exports.processMessageSafe = processMessageSafe;
