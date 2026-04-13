@@ -37,8 +37,17 @@ function fetch(url) {
 
 // ── Weather ──
 async function getWeather(location) {
-  try { return (await fetch(`https://wttr.in/${encodeURIComponent(location)}?format=3`)).trim(); }
-  catch { return 'Weather unavailable'; }
+  try {
+    const raw = await fetch('https://wttr.in/' + encodeURIComponent(location) + '?format=j1');
+    const data = JSON.parse(raw);
+    const current = data.current_condition[0];
+    const days = data.weather.slice(0, 3).map(d => {
+      const date = new Date(d.date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+      const desc = d.hourly[4]?.weatherDesc[0]?.value || '';
+      return date + ': ' + desc + ', high ' + d.maxtempF + '°F / low ' + d.mintempF + '°F';
+    });
+    return 'Right now: ' + current.weatherDesc[0].value + ', ' + current.temp_F + '°F (feels like ' + current.FeelsLikeF + '°F), ' + current.humidity + '% humidity\n3-day forecast:\n' + days.join('\n');
+  } catch { return 'Weather unavailable'; }
 }
 
 // ── Stocks ──
@@ -277,7 +286,7 @@ How to respond:
   for (let i = 0; i < 10; i++) {
     const res = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1500,
+      max_tokens: 4096,
       system,
       tools: allTools,
       messages
