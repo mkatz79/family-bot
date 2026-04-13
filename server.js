@@ -1,15 +1,18 @@
 require('dotenv').config();
 const express = require('express');
 const cron = require('node-cron');
-const { processMessage } = require('./agent');
+const { processMessage, loadAndScheduleReminders, setSendMessage } = require('./agent');
 const { sendMessage } = require('./telegram');
 
 const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const GROUP_CHAT_ID = process.env.TELEGRAM_GROUP_CHAT_ID;
-const ALLOWED_GROUP_ID = '-5287014154';
+const FAMILY_GROUP_ID = '-5287014154';
+
+// Wire sendMessage into agent for reminders
+setSendMessage(sendMessage);
+loadAndScheduleReminders();
 
 app.use('/webhook', async (req, res) => {
   res.sendStatus(200);
@@ -19,30 +22,33 @@ app.use('/webhook', async (req, res) => {
   const chatId = msg.chat.id.toString();
   const senderName = msg.from.first_name || msg.from.username || 'Family member';
   const text = msg.text;
-
-  // In groups, only respond in the authorized family group, to all messages
-  if (msg.chat.type !== 'private') {
-    if (chatId !== ALLOWED_GROUP_ID) return;
-  }
-
-  console.log('Message from ' + senderName + ' [' + msg.chat.type + ']: ' + text);
+  if (msg.chat.type !== 'private' && chatId !== FAMILY_GROUP_ID) return;
+  console.log(`[${msg.chat.type}] ${senderName}: ${text.substring(0,80)}`);
   try {
-    const response = await processMessage('[' + senderName + ']: ' + text, chatId);
+    const response = await processMessage(`[${senderName}]: ${text}`, chatId);
     if (response) await sendMessage(chatId, response);
   } catch (err) {
     console.error('Error:', err.message);
-    try { await sendMessage(chatId, 'Sorry, ran into an error!'); } catch(e) {}
+    try { await sendMessage(chatId, 'Hit an error, try again.'); } catch(e) {}
   }
 });
 
 app.get('/', (req, res) => res.send('Katz Family Bot is running!'));
 
+// 7am daily briefing
 cron.schedule('0 7 * * *', async () => {
-  const groupId = GROUP_CHAT_ID || ALLOWED_GROUP_ID;
   try {
-    const r = await processMessage('Give the Katz family a brief morning briefing: todays date, key events today and tomorrow, and a short motivational note.', groupId);
-    if (r) await sendMessage(groupId, r);
-  } catch (e) { console.error(e); }
+    const r = await processMessage('[System]: Send the family their morning briefing — good morning, today\'s date, Menachem\'s key events today and tomorrow, anything worth flagging, and a brief thought for the day. Keep it warm and punchy, like a text from a helpful friend.', FAMILY_GROUP_ID);
+    if (r) await sendMessage(FAMILY_GROUP_ID, r);
+  } catch(e) { console.error('Briefing error:', e.message); }
 }, { timezone: 'America/New_York' });
 
-app.listen(PORT, () => console.log('Katz Family Bot running on port ' + PORT));
+// Sunday 8pm weekly preview
+cron.schedule('0 20 * * 0', async () => {
+  try {
+    const r = await processMessage('[System]: Give the family a Sunday evening weekly preview — what\'s coming up this week for Menachem, any key dates or deadlines, and a motivational note to kick off the week. Conversational, not a formal report.', FAMILY_GROUP_ID);
+    if (r) await sendMessage(FAMILY_GROUP_ID, r);
+  } catch(e) { console.error('Weekly preview error:', e.message); }
+}, { timezone: 'America/New_York' });
+
+app.listen(PORT, () => console.log(`Katz Family Bot running on port ${PORT}`));
