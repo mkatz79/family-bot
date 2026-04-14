@@ -301,7 +301,7 @@ async function processMessage(userMessage, chatId, image = null) {
       ]
     : userMessage;
   history.push({ role: 'user', content: image ? '[image sent]' : userMessage });
-  saveHistories(chatHistories);
+  memory.saveHistory(chatId, history);
   while (history.length > MAX_HISTORY) history.shift();
   const messages = [...history.slice(0, -1), { role: 'user', content: userContent }];
 
