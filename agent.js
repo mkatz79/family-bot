@@ -6,6 +6,7 @@ const { listEvents, createEvent, updateEvent, deleteEvent } = require('./calenda
 const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
+const { getFlightStatus } = require('./flighttracker');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const DATA_DIR = __dirname;
@@ -207,6 +208,8 @@ const customTools = [
   { name: 'set_reminder', description: 'Set a reminder to fire at a specific time', input_schema: { type:'object', properties: { text:{type:'string'}, fire_at:{type:'string',description:'ISO datetime in ET'} }, required:['text','fire_at'] } },
   { name: 'list_reminders', description: 'List pending reminders', input_schema: { type:'object', properties: {} } },
   { name: 'update_family_knowledge', description: 'Save important info for future use', input_schema: { type:'object', properties: { key:{type:'string'}, value:{type:'string'} }, required:['key','value'] } },
+  { name: 'track_flight', description: 'Get live flight status and arrival info. Use flight IATA code e.g. AA1234', input_schema: { type:'object', properties: { flight_number:{type:'string'}, date:{type:'string',description:'YYYY-MM-DD, defaults to today'} }, required:['flight_number'] } },
+  { name: 'set_flight_alert', description: 'Monitor a flight and alert user X minutes before landing', input_schema: { type:'object', properties: { flight_number:{type:'string'}, date:{type:'string'}, minutes_before:{type:'number',description:'minutes before landing to alert, default 25'}, person_name:{type:'string'} }, required:['flight_number','date'] } },
   { name: 'draft_message', description: 'Draft an email or message for review', input_schema: { type:'object', properties: { to:{type:'string'}, subject:{type:'string'}, body:{type:'string'}, type:{type:'string',description:'email or text'} }, required:['to','body'] } }
 ];
 
@@ -229,6 +232,21 @@ async function executeTool(name, input, chatId) {
   if (name === 'manage_shopping') return manageShoppingList(input.action, input.item);
   if (name === 'set_reminder') return setReminder(chatId, input.text, input.fire_at);
   if (name === 'list_reminders') return listReminders(chatId);
+  if (name === 'track_flight') {
+    const status = await getFlightStatus(input.flight_number, input.date);
+    return status || 'Flight not found';
+  }
+  if (name === 'set_flight_alert') {
+    const status = await getFlightStatus(input.flight_number, input.date);
+    if (!status || status.error) return 'Could not find flight ' + input.flight_number;
+    const landingTime = status.arrival?.estimated || status.arrival?.scheduled;
+    if (!landingTime) return 'Could not determine landing time';
+    const minutesBefore = input.minutes_before || 25;
+    const alertTime = new Date(new Date(landingTime).getTime() - minutesBefore * 60000);
+    const name = input.person_name || 'your guest';
+    const alertText = '✈️ Flight alert: ' + input.flight_number + ' (' + name + ') lands in ~' + minutesBefore + ' minutes at ' + status.arrival.airport + '. Status: ' + status.status + (status.arrival.delay ? ' (delayed ' + status.arrival.delay + ' min)' : ' (on time)');
+    return setReminder(chatId, alertText, alertTime.toISOString());
+  }
   if (name === 'draft_message') return `DRAFT (${input.type || 'message'}) to ${input.to}:\n${input.subject ? 'Subject: ' + input.subject + '\n' : ''}${input.body}`;
   if (name === 'update_family_knowledge') {
     const ctx = loadContext();
