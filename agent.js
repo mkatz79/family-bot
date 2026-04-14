@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
 const { getFlightStatus } = require('./flighttracker');
+const { logFood, getDailySummary, getWeeklySummary } = require('./nutrition');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const DATA_DIR = __dirname;
@@ -208,6 +209,8 @@ const customTools = [
   { name: 'set_reminder', description: 'Set a reminder to fire at a specific time', input_schema: { type:'object', properties: { text:{type:'string'}, fire_at:{type:'string',description:'ISO datetime in ET'} }, required:['text','fire_at'] } },
   { name: 'list_reminders', description: 'List pending reminders', input_schema: { type:'object', properties: {} } },
   { name: 'update_family_knowledge', description: 'Save important info for future use', input_schema: { type:'object', properties: { key:{type:'string'}, value:{type:'string'} }, required:['key','value'] } },
+  { name: 'log_food', description: 'Log food eaten by a person and get nutrition info (calories, protein, carbs, fat)', input_schema: { type:'object', properties: { person:{type:'string',description:'menachem or chen'}, food_description:{type:'string',description:'natural language food description e.g. 2 eggs and toast'}, meal:{type:'string',description:'breakfast, lunch, dinner, or snack'} }, required:['person','food_description'] } },
+  { name: 'get_nutrition_summary', description: 'Get daily or weekly nutrition summary for a person', input_schema: { type:'object', properties: { person:{type:'string'}, period:{type:'string',description:'today, yesterday, or weekly'} }, required:['person'] } },
   { name: 'track_flight', description: 'Get live flight status and arrival info. Use flight IATA code e.g. AA1234', input_schema: { type:'object', properties: { flight_number:{type:'string'}, date:{type:'string',description:'YYYY-MM-DD, defaults to today'} }, required:['flight_number'] } },
   { name: 'set_flight_alert', description: 'Monitor a flight and alert user X minutes before landing', input_schema: { type:'object', properties: { flight_number:{type:'string'}, date:{type:'string'}, minutes_before:{type:'number',description:'minutes before landing to alert, default 25'}, person_name:{type:'string'} }, required:['flight_number','date'] } },
   { name: 'draft_message', description: 'Draft an email or message for review', input_schema: { type:'object', properties: { to:{type:'string'}, subject:{type:'string'}, body:{type:'string'}, type:{type:'string',description:'email or text'} }, required:['to','body'] } }
@@ -232,6 +235,17 @@ async function executeTool(name, input, chatId) {
   if (name === 'manage_shopping') return manageShoppingList(input.action, input.item);
   if (name === 'set_reminder') return setReminder(chatId, input.text, input.fire_at);
   if (name === 'list_reminders') return listReminders(chatId);
+  if (name === 'log_food') {
+    return await logFood(input.person?.toLowerCase() || 'menachem', input.food_description, input.meal);
+  }
+  if (name === 'get_nutrition_summary') {
+    const person = input.person?.toLowerCase() || 'menachem';
+    if (input.period === 'weekly') return getWeeklySummary(person) || 'No data yet';
+    const date = input.period === 'yesterday' 
+      ? new Date(Date.now() - 86400000).toLocaleDateString('en-US', { timeZone: 'America/New_York' }).replace(/\//g, '-')
+      : null;
+    return getDailySummary(person, date) || 'Nothing logged yet today';
+  }
   if (name === 'track_flight') {
     const status = await getFlightStatus(input.flight_number, input.date);
     return status || 'Flight not found';
@@ -283,6 +297,7 @@ Your capabilities:
 - Live weather, stock prices, sports scores
 - Web search for news, research, anything current
 - Draft emails and messages
+- Track food intake and nutrition (calories, protein, carbs, fat) for Menachem and Chen
 - Answer any question, do any task
 
 How to respond:
