@@ -257,7 +257,7 @@ About the family:
 Stored info: ${JSON.stringify(ctx)}
 
 Your capabilities:
-- Full calendar access (Menachem's Steuben Outlook + Google Calendar, Chen's calendar)
+- Full calendar access via list_events tool which reads ALL connected calendars automatically (Menachem Steuben Outlook, Google Calendar, Chen Katz calendar, Family calendar). NEVER try to access calendars by email address directly - always use list_events.
 - Create, update, reschedule, delete events
 - Find free time slots
 - Set and manage reminders
