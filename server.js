@@ -109,3 +109,9 @@ cron.schedule('0 20 * * 0', async () => {
 }, { timezone: 'America/New_York' });
 
 app.listen(PORT, () => console.log(`Katz Family Bot running on port ${PORT}`));
+
+// Memory backup/restore endpoint
+app.get('/memory', (req, res) => {
+  const memory = require('./memory');
+  res.json(memory.getFullMemory());
+});
