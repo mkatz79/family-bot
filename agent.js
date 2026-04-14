@@ -239,7 +239,7 @@ async function executeTool(name, input, chatId) {
 }
 
 // ── Main process ──
-async function processMessage(userMessage, chatId) {
+async function processMessage(userMessage, chatId, image = null) {
   const ctx = loadContext();
   const now = new Date().toLocaleString('en-US', {
     timeZone: 'America/New_York', weekday:'long', year:'numeric',
@@ -279,9 +279,15 @@ How to respond:
 
   if (!chatHistories[chatId]) chatHistories[chatId] = [];
   const history = chatHistories[chatId];
-  history.push({ role: 'user', content: userMessage });
+  const userContent = image
+    ? [
+        { type: 'image', source: { type: 'base64', media_type: image.mime, data: image.base64 } },
+        { type: 'text', text: userMessage }
+      ]
+    : userMessage;
+  history.push({ role: 'user', content: image ? '[image sent]' : userMessage });
   while (history.length > MAX_HISTORY) history.shift();
-  const messages = [...history];
+  const messages = [...history.slice(0, -1), { role: 'user', content: userContent }];
 
   for (let i = 0; i < 10; i++) {
     const res = await anthropic.messages.create({
@@ -327,12 +333,12 @@ How to respond:
 module.exports = { processMessage, loadAndScheduleReminders, setSendMessage };
 
 // Export timeout wrapper
-async function processMessageSafe(userMessage, chatId) {
+async function processMessageSafe(userMessage, chatId, image = null) {
   try {
     const timeout = new Promise((resolve) => 
       setTimeout(() => resolve("Sorry, that took too long. Try asking something simpler or break it into separate questions."), 28000)
     );
-    return await Promise.race([processMessage(userMessage, chatId), timeout]);
+    return await Promise.race([processMessage(userMessage, chatId, image), timeout]);
   } catch(e) {
     console.error('processMessageSafe error:', e.message);
     return "Hit a snag on that one — try again or rephrase it.";
