@@ -2,7 +2,8 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const NUTRITION_FILE = path.join(__dirname, 'nutrition_log.json');
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || (process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname);
+const NUTRITION_FILE = path.join(DATA_DIR, 'nutrition_log.json');
 
 function loadLog() {
   try { return JSON.parse(fs.readFileSync(NUTRITION_FILE, 'utf8')); }

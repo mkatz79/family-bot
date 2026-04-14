@@ -11,7 +11,7 @@ const memory = require('./memory');
 const { logFood, getDailySummary, getWeeklySummary } = require('./nutrition');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const DATA_DIR = __dirname;
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || (process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname);
 const CONTEXT_FILE = path.join(DATA_DIR, 'family-context.json');
 const TODOS_FILE = path.join(DATA_DIR, 'todos.json');
 const SHOPPING_FILE = path.join(DATA_DIR, 'shopping.json');

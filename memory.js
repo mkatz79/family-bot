@@ -1,7 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const MEMORY_FILE = path.join(__dirname, 'memory.json');
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || (process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname);
+const MEMORY_FILE = path.join(DATA_DIR, 'memory.json');
+
+try { require('fs').mkdirSync(DATA_DIR, { recursive: true }); } catch(e) {}
 
 function load() {
   try { return JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8')); }
