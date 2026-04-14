@@ -328,9 +328,14 @@ module.exports = { processMessage, loadAndScheduleReminders, setSendMessage };
 
 // Export timeout wrapper
 async function processMessageSafe(userMessage, chatId) {
-  const timeout = new Promise((_, reject) => 
-    setTimeout(() => reject(new Error('timeout')), 25000)
-  );
-  return Promise.race([processMessage(userMessage, chatId), timeout]);
+  try {
+    const timeout = new Promise((resolve) => 
+      setTimeout(() => resolve("Sorry, that took too long. Try asking something simpler or break it into separate questions."), 28000)
+    );
+    return await Promise.race([processMessage(userMessage, chatId), timeout]);
+  } catch(e) {
+    console.error('processMessageSafe error:', e.message);
+    return "Hit a snag on that one — try again or rephrase it.";
+  }
 }
 module.exports.processMessageSafe = processMessageSafe;
