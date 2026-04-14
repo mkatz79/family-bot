@@ -1,10 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || (process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname);
-const MEMORY_FILE = path.join(DATA_DIR, 'memory.json');
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || 
+  (process.env.RAILWAY_ENVIRONMENT ? '/app/data' : __dirname);
 
-try { require('fs').mkdirSync(DATA_DIR, { recursive: true }); } catch(e) {}
+try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch(e) {}
+
+const MEMORY_FILE = path.join(DATA_DIR, 'memory.json');
 
 function load() {
   try { return JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8')); }
@@ -17,8 +19,7 @@ function save(data) {
 }
 
 function getHistory(chatId) {
-  const data = load();
-  return data.histories[chatId] || [];
+  return load().histories[chatId] || [];
 }
 
 function saveHistory(chatId, history) {
