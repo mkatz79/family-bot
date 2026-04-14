@@ -16,8 +16,21 @@ const TODOS_FILE = path.join(DATA_DIR, 'todos.json');
 const SHOPPING_FILE = path.join(DATA_DIR, 'shopping.json');
 const REMINDERS_FILE = path.join(DATA_DIR, 'reminders.json');
 
-const chatHistories = {};
-const MAX_HISTORY = 30;
+const HISTORY_FILE = path.join(DATA_DIR, 'chat_histories.json');
+const MAX_HISTORY = 100;
+
+function loadHistories() {
+  try { return JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')); }
+  catch { return {}; }
+}
+
+function saveHistories(histories) {
+  try { fs.writeFileSync(HISTORY_FILE, JSON.stringify(histories)); }
+  catch(e) { console.error('Failed to save histories:', e.message); }
+}
+
+const chatHistories = loadHistories();
+console.log('Loaded histories for', Object.keys(chatHistories).length, 'chats');
 const activeReminders = {};
 
 // ── Data helpers ──
@@ -319,6 +332,7 @@ How to respond:
       ]
     : userMessage;
   history.push({ role: 'user', content: image ? '[image sent]' : userMessage });
+  saveHistories(chatHistories);
   while (history.length > MAX_HISTORY) history.shift();
   const messages = [...history.slice(0, -1), { role: 'user', content: userContent }];
 
@@ -337,6 +351,7 @@ How to respond:
       if (reply) {
         history.push({ role: 'assistant', content: reply });
         while (history.length > MAX_HISTORY) history.shift();
+        saveHistories(chatHistories);
       }
       return reply;
     }
