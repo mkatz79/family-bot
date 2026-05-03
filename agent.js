@@ -148,10 +148,18 @@ function scheduleReminder(reminder) {
 function loadAndScheduleReminders() {
   const data = load(REMINDERS_FILE, { reminders: [] });
   const now = new Date();
-  data.reminders = data.reminders.filter(r => new Date(r.fireAt) > now);
+  const GRACE_MS = 5 * 60 * 1000;
+  const late = data.reminders.filter(r => { const f = new Date(r.fireAt); return f <= now && (now - f) <= GRACE_MS; });
+  const future = data.reminders.filter(r => new Date(r.fireAt) > now);
+  late.forEach(r => {
+    console.log('Firing late reminder:', r.text);
+    setTimeout(async () => { if (sendMessageFn) { try { await sendMessageFn(r.chatId, '\u23F0 Reminder: ' + r.text); } catch(e) {} } }, 1500);
+  });
+  data.reminders = future;
   save(REMINDERS_FILE, data);
-  data.reminders.forEach(scheduleReminder);
-  console.log(`Loaded ${data.reminders.length} pending reminder(s)`);
+  future.forEach(scheduleReminder);
+  console.log('Loaded ' + future.length + ' pending, fired ' + late.length + ' late reminder(s)');
+} pending reminder(s)`);
 }
 
 function setReminder(chatId, text, fireAt) {
@@ -287,7 +295,7 @@ async function processMessage(userMessage, chatId, image = null) {
     "Facts: " + JSON.stringify(memory.getAllFacts()),
     "PERSONALITY: You ARE Claude. Same intelligence, warmth, curiosity. Think first, tools second. Never announce tools. Match energy - casual gets casual, urgent gets direct. No bullet points for conversational replies. No sign-offs. No Best. No dashes. Just talk naturally.",
     "CALENDAR: Always use list_events - it reads ALL calendars. Never say you cannot access a calendar.",
-    "NUTRITION: When logging food, YOU calculate calories/protein/carbs/fat from knowledge. Never log zeros.",
+    "NUTRITION: When logging food, YOU must estimate realistic macros. Examples: chicken breast ~165cal/31g protein, 3 eggs ~210cal/18g protein, oatmeal ~150cal/5g protein, quinoa cup ~220cal/8g protein. NEVER return zeros for real food.",
     "MEMORY: You remember everything from this conversation. Refer back naturally.",
     "NEWS: Summarize what is actually happening, with context and your take."
   ].join(" ");
@@ -353,7 +361,7 @@ module.exports = { processMessage, loadAndScheduleReminders, setSendMessage };
 async function processMessageSafe(userMessage, chatId, image = null) {
   try {
     const timeout = new Promise((resolve) => 
-      setTimeout(() => resolve("Sorry, that took too long. Try asking something simpler or break it into separate questions."), 28000)
+      setTimeout(() => resolve("Sorry, that took too long. Try asking something simpler or break it into separate questions."), 55000)
     );
     return await Promise.race([processMessage(userMessage, chatId, image), timeout]);
   } catch(e) {
