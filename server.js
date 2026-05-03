@@ -96,16 +96,26 @@ app.get('/', (req, res) => res.send('Katz Family Bot is running!'));
 
 cron.schedule('0 7 * * *', async () => {
   try {
-    const r = await processMessageSafe('[System]: Send the family their morning briefing — good morning, today\'s date, key events today and tomorrow, anything worth flagging, and a brief thought for the day. Warm and punchy.', FAMILY_GROUP_ID);
+    const r = await processMessageSafe('[System]: Send the family their morning briefing â good morning, today\'s date, key events today and tomorrow, anything worth flagging, and a brief thought for the day. Warm and punchy.', FAMILY_GROUP_ID);
     if (r) await sendMessage(FAMILY_GROUP_ID, r);
   } catch(e) { console.error('Briefing error:', e.message); }
 }, { timezone: 'America/New_York' });
 
 cron.schedule('0 20 * * 0', async () => {
   try {
-    const r = await processMessageSafe('[System]: Sunday evening weekly preview — what\'s coming up this week, key dates, motivational note. Conversational, not a formal report.', FAMILY_GROUP_ID);
+    const r = await processMessageSafe('[System]: Sunday evening weekly preview â what\'s coming up this week, key dates, motivational note. Conversational, not a formal report.', FAMILY_GROUP_ID);
     if (r) await sendMessage(FAMILY_GROUP_ID, r);
   } catch(e) { console.error('Weekly preview error:', e.message); }
+}, { timezone: 'America/New_York' });
+
+
+
+// Friday 9am — weekly shopping list
+cron.schedule('0 9 * * 5', async () => {
+  try {
+    const r = await processMessageSafe('[System]: It is Friday morning. Generate the full family shopping list for the week. Start with "🛒 Weekly Shopping List:" then list every item currently on the shopping list, organized by category (produce, dairy, pantry, etc.) if possible. Add a note about how many items total. Keep it clean and easy to read — this is going to the grocery store.', FAMILY_GROUP_ID);
+    if (r) await sendMessage(FAMILY_GROUP_ID, r);
+  } catch(e) { console.error('Friday shopping cron error:', e.message); }
 }, { timezone: 'America/New_York' });
 
 app.listen(PORT, () => console.log(`Katz Family Bot running on port ${PORT}`));
