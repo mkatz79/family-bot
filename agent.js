@@ -159,7 +159,6 @@ function loadAndScheduleReminders() {
   save(REMINDERS_FILE, data);
   future.forEach(scheduleReminder);
   console.log('Loaded ' + future.length + ' pending, fired ' + late.length + ' late reminder(s)');
-} pending reminder(s)`);
 }
 
 function setReminder(chatId, text, fireAt) {
